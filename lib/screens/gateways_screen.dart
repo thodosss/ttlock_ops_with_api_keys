@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../theme/ops_theme.dart';
 import '../ttlock_api.dart';
+import '../widgets/ops_ui.dart';
 
 class GatewaysScreen extends StatefulWidget {
   const GatewaysScreen({
@@ -72,38 +75,104 @@ class _GatewaysScreenState extends State<GatewaysScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Ξανά')),
+                        OpsErrorBanner(_error!),
+                        const SizedBox(height: 16),
+                        OpsPrimaryButton(label: 'Ξανά', onPressed: _load),
                       ],
                     ),
                   ),
                 )
               : _gateways.isEmpty
-                  ? const Center(child: Text('Δεν βρέθηκαν gateways'))
+                  ? Center(
+                      child: Text(
+                        'Δεν βρέθηκαν gateways',
+                        style: GoogleFonts.ibmPlexSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: OpsColors.muted,
+                        ),
+                      ),
+                    )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _gateways.length,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _gateways.length + 1,
                       itemBuilder: (context, i) {
-                        final g = _gateways[i];
+                        if (i == 0) {
+                          return const Padding(
+                            padding: EdgeInsets.only(bottom: 16),
+                            child: OpsSectionHeader(
+                              eyebrow: 'Network',
+                              title: 'Gateways',
+                              subtitle: 'Online status & bound locks.',
+                            ),
+                          );
+                        }
+                        final g = _gateways[i - 1];
                         final online = g['isOnline'] == 1;
-                        return Card(
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.router,
-                              color: online ? Colors.green : Colors.grey,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: OpsPanel(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  margin: const EdgeInsets.only(top: 4),
+                                  color: online
+                                      ? OpsColors.orange
+                                      : OpsColors.muted,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        g['gatewayName']?.toString() ??
+                                            'Gateway ${g['gatewayId']}',
+                                        style: GoogleFonts.ibmPlexSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: OpsColors.ink,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'id=${g['gatewayId']} · mac=${g['gatewayMac'] ?? '—'}',
+                                        style: GoogleFonts.ibmPlexSans(
+                                          fontSize: 11,
+                                          color: OpsColors.muted,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: [
+                                          OpsStamp(
+                                            online ? 'ONLINE' : 'OFFLINE',
+                                            color: online
+                                                ? OpsColors.orangeDeep
+                                                : OpsColors.muted,
+                                            bg: online
+                                                ? OpsColors.orangeWash
+                                                : OpsColors.field,
+                                          ),
+                                          OpsStamp(
+                                            'LOCKS ${g['lockNum'] ?? '—'}',
+                                          ),
+                                          OpsStamp(
+                                            'NET ${g['networkName'] ?? '—'}',
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            title: Text(
-                              g['gatewayName']?.toString() ??
-                                  'Gateway ${g['gatewayId']}',
-                            ),
-                            subtitle: Text(
-                              'id=${g['gatewayId']} · mac=${g['gatewayMac'] ?? '—'}\n'
-                              'locks=${g['lockNum'] ?? '—'} · '
-                              'online=${online ? 'ναι' : 'όχι'} · '
-                              'net=${g['networkName'] ?? '—'}',
-                            ),
-                            isThreeLine: true,
                           ),
                         );
                       },

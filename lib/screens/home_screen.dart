@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../storage.dart';
+import '../theme/ops_theme.dart';
 import '../ttlock_api.dart';
+import '../widgets/ops_ui.dart';
 import 'gateways_screen.dart';
 import 'lock_detail_screen.dart';
 
@@ -205,6 +208,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Widget _labeledField({
+    required String label,
+    required Widget field,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OpsFieldLabel(label),
+        field,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
@@ -212,18 +228,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final filtered = _filtered;
+    final connected = _accessToken != null && _locks.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('TTLock Ops'),
         actions: [
-          IconButton(
-            tooltip: 'Gateways',
+          TextButton(
             onPressed: _openGateways,
-            icon: const Icon(Icons.router),
+            style: TextButton.styleFrom(foregroundColor: OpsColors.ink),
+            child: const Text('Gateways'),
           ),
-          IconButton(
-            tooltip: 'Αποθήκευση',
+          TextButton(
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
               await _persist();
@@ -231,140 +247,220 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SnackBar(content: Text('Αποθηκεύτηκε τοπικά')),
               );
             },
-            icon: const Icon(Icons.save_outlined),
+            child: const Text('Save'),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Σύνδεση', style: Theme.of(context).textTheme.titleMedium),
+          const OpsSectionHeader(
+            eyebrow: 'TTLock Ops / Cloud',
+            title: 'Σύνδεση',
+            subtitle: 'Έλεγχος πρόσβασης, χωρίς περισπασμούς.',
+          ),
+          const SizedBox(height: 16),
+          if (connected) ...[
+            OpsConnectedStrip(
+              baseUrl: _baseUrl,
+              clientId: _clientIdCtrl.text.trim(),
+            ),
+            const SizedBox(height: 16),
+          ],
+          _labeledField(
+            label: 'API URL',
+            field: DropdownButtonFormField<String>(
+              // ignore: deprecated_member_use
+              value: _baseUrl,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: [
+                for (final u in kBaseUrls)
+                  DropdownMenuItem(value: u, child: Text(u, maxLines: 1)),
+              ],
+              onChanged: (v) {
+                if (v != null) setState(() => _baseUrl = v);
+              },
+            ),
+          ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
-            value: _baseUrl,
-            decoration: const InputDecoration(
-              labelText: 'API base URL',
-              border: OutlineInputBorder(),
+          _labeledField(
+            label: 'clientId',
+            field: TextField(
+              controller: _clientIdCtrl,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              autocorrect: false,
             ),
-            items: [
-              for (final u in kBaseUrls)
-                DropdownMenuItem(value: u, child: Text(u, maxLines: 1)),
-            ],
-            onChanged: (v) {
-              if (v != null) setState(() => _baseUrl = v);
-            },
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _clientIdCtrl,
-            decoration: const InputDecoration(
-              labelText: 'clientId',
-              border: OutlineInputBorder(),
-            ),
-            autocorrect: false,
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (!_useToken) ...[
-            TextField(
-              controller: _clientSecretCtrl,
-              decoration: const InputDecoration(
-                labelText: 'clientSecret',
-                border: OutlineInputBorder(),
+            _labeledField(
+              label: 'clientSecret',
+              field: TextField(
+                controller: _clientSecretCtrl,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                obscureText: true,
+                autocorrect: false,
               ),
-              obscureText: true,
-              autocorrect: false,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _usernameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'TTLock App username',
-                border: OutlineInputBorder(),
+            const SizedBox(height: 8),
+            _labeledField(
+              label: 'username',
+              field: TextField(
+                controller: _usernameCtrl,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                autocorrect: false,
+                keyboardType: TextInputType.emailAddress,
               ),
-              autocorrect: false,
-              keyboardType: TextInputType.emailAddress,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordCtrl,
-              decoration: const InputDecoration(
-                labelText: 'TTLock App password',
-                border: OutlineInputBorder(),
+            const SizedBox(height: 8),
+            _labeledField(
+              label: 'password',
+              field: TextField(
+                controller: _passwordCtrl,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                obscureText: true,
               ),
-              obscureText: true,
             ),
+            const SizedBox(height: 8),
           ],
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Χρησιμοποίησε access token'),
+            title: Text(
+              'Σύνδεση με token',
+              style: GoogleFonts.ibmPlexSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: OpsColors.ink,
+              ),
+            ),
             value: _useToken,
             onChanged: (v) => setState(() => _useToken = v),
           ),
-          if (_useToken)
-            TextField(
-              controller: _tokenCtrl,
-              decoration: const InputDecoration(
-                labelText: 'access_token',
-                border: OutlineInputBorder(),
+          if (_useToken) ...[
+            const SizedBox(height: 8),
+            _labeledField(
+              label: 'access_token',
+              field: TextField(
+                controller: _tokenCtrl,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                obscureText: true,
+                autocorrect: false,
               ),
-              obscureText: true,
-              autocorrect: false,
             ),
+          ],
           const SizedBox(height: 12),
-          FilledButton.icon(
+          OpsPrimaryButton(
+            label: _loading ? 'Φόρτωση…' : 'Σύνδεση & κλειδαριές',
             onPressed: _loading ? null : _loadLocks,
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.lock_open),
-            label: Text(_loading ? 'Φόρτωση…' : 'Σύνδεση & κλειδαριές'),
+            busy: _loading,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+            OpsErrorBanner(_error!),
+          ],
+          if (!_loading && _error == null && _locks.isEmpty) ...[
+            const SizedBox(height: 16),
+            const OpsNote(
+              'Χρησιμοποιήστε τα στοιχεία της εφαρμογής σας στο TTLock Cloud.',
+            ),
           ],
           if (_locks.isNotEmpty) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            Text(
+              'ΚΛΕΙΔΑΡΙΕΣ ${filtered.length}/${_locks.length}',
+              style: GoogleFonts.ibmPlexSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: OpsColors.ink,
+              ),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _filterCtrl,
               decoration: const InputDecoration(
-                labelText: 'Φίλτρο alias / name / MAC',
+                hintText: 'Φίλτρο alias / name / MAC',
+                prefixIcon: Icon(Icons.search, color: OpsColors.ink),
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Κλειδαριές: ${filtered.length} / ${_locks.length}',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ...filtered.map((lk) {
               final alias = lk['lockAlias']?.toString() ?? '';
               final name = lk['lockName']?.toString() ?? '';
               final title = alias.isNotEmpty ? alias : name;
               final mac = lk['lockMac']?.toString() ?? '—';
               final bat = lk['electricQuantity'];
+              final batNum = bat is num ? bat : num.tryParse('$bat');
               final gw = lk['hasGateway'] == 1;
               final id = lk['lockId'];
-              return Card(
-                child: ListTile(
-                  title: Text(title.isEmpty ? 'Κλειδαριά $id' : title),
-                  subtitle: Text(
-                    'id=$id · mac=$mac · μπατ=${bat ?? '—'}% · '
-                    'gateway=${gw ? 'ναι' : 'όχι'}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OpsPanel(
                   onTap: () => _openLock(lk),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title.isEmpty ? 'Κλειδαριά $id' : title,
+                              style: GoogleFonts.ibmPlexSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: OpsColors.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'id=$id · mac=$mac',
+                              style: GoogleFonts.ibmPlexSans(
+                                fontSize: 11,
+                                color: OpsColors.muted,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                OpsStamp(
+                                  'BAT ${bat ?? '—'}%',
+                                  color: opsBatteryColor(batNum),
+                                ),
+                                OpsStamp(
+                                  gw ? 'GATEWAY YES' : 'GATEWAY NO',
+                                  color: gw
+                                      ? OpsColors.success
+                                      : OpsColors.muted,
+                                  bg: gw
+                                      ? const Color(0x1A3D7C2E)
+                                      : OpsColors.field,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: OpsColors.ink),
+                    ],
+                  ),
                 ),
               );
             }),
           ],
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'TTLOCK CLOUD API  /  ANDROID',
+              style: GoogleFonts.ibmPlexSans(
+                fontSize: 9,
+                color: OpsColors.muted,
+              ),
+            ),
+          ),
         ],
       ),
     );
